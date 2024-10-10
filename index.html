@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text to Speech Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 60%;
+            margin: 50px auto;
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        .header {
+            background-color: #ffcc00;
+            padding: 10px;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #333;
+        }
+        .content {
+            padding: 20px;
+        }
+        .content textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            resize: none;
+        }
+        .content select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .content button {
+            background-color: #ffcc00;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .content button:hover {
+            background-color: #e6b800;
+        }
+        .content .audio-player {
+            width: 100%;
+            margin: 20px 0;
+        }
+        .content .download-button {
+            background-color: #ffcc00;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .content .download-button:hover {
+            background-color: #e6b800;
+        }
+        .char-count {
+            text-align: right;
+            font-size: 14px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Convert Text to Speech</h1>
+        </div>
+        <div class="content">
+            <textarea id="text-input" placeholder="Enter your text here..."></textarea>
+            <div class="char-count" id="char-count">0/500 characters</div>
+            <select id="language-select">
+                <option value="en-US">English</option>
+                <option value="fr-FR">French</option>
+                <option value="ar-SA">Arabic</option>
+                <option value="es-ES">Spanish</option>
+                <option value="de-DE">German</option>
+            </select>
+            <select id="voice-select">
+                <option value="">Select a voice</option>
+                <!-- voice options will be populated dynamically or manually -->
+            </select>
+            <button id="convert-button">Convert to Speech</button>
+            <audio class="audio-player" id="audio-player" controls></audio>
+            <button class="download-button" id="download-button">Download Audio</button>
+        </div>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('text-input');
+        const charCount = document.getElementById('char-count');
+        const languageSelect = document.getElementById('language-select');
+        const voiceSelect = document.getElementById('voice-select');
+        const convertButton = document.getElementById('convert-button');
+        const audioPlayer = document.getElementById('audio-player');
+        const downloadButton = document.getElementById('download-button');
+        let voices = [];
+
+        // Manually define French, Arabic, Spanish, and German voice options
+        const manualVoices = {
+            "fr-FR": [
+                { name: "Google français", voiceURI: "Google Français", lang: "fr-FR" },
+                { name: "Microsoft Hortense", voiceURI: "Microsoft Hortense", lang: "fr-FR" }
+            ],
+            "ar-SA": [
+                { name: "Google العربية", voiceURI: "Google العربية", lang: "ar-SA" },
+                { name: "Microsoft Naayf", voiceURI: "Microsoft Naayf", lang: "ar-SA" }
+            ],
+            "es-ES": [
+                { name: "Google español", voiceURI: "Google Español", lang: "es-ES" },
+                { name: "Microsoft Helena", voiceURI: "Microsoft Helena", lang: "es-ES" }
+            ],
+            "de-DE": [
+                { name: "Google Deutsch", voiceURI: "Google Deutsch", lang: "de-DE" },
+                { name: "Microsoft Hedda", voiceURI: "Microsoft Hedda", lang: "de-DE" }
+            ]
+        };
+
+        // Populate the list of voices based on the selected language
+        function populateVoiceList() {
+            voices = window.speechSynthesis.getVoices();
+            const selectedLang = languageSelect.value;
+            voiceSelect.innerHTML = '';
+
+            // Filter voices from the browser's available voices or use manually defined voices
+            const filteredVoices = voices.filter(voice => voice.lang.startsWith(selectedLang)) || manualVoices[selectedLang];
+            
+            if (filteredVoices.length > 0) {
+                filteredVoices.forEach(voice => {
+                    const option = document.createElement('option');
+                    option.value = voice.voiceURI;
+                    option.text = `${voice.name} (${voice.lang})`;
+                    voiceSelect.appendChild(option);
+                });
+            } else {
+                // If no browser-provided voices are available, use the manually defined voices
+                if (manualVoices[selectedLang]) {
+                    manualVoices[selectedLang].forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = voice.voiceURI;
+                        option.text = `${voice.name} (${voice.lang})`;
+                        voiceSelect.appendChild(option);
+                    });
+                } else {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.text = 'No voices available for this language';
+                    voiceSelect.appendChild(option);
+                }
+            }
+        }
+
+        // Populate voices when the page loads
+        populateVoiceList();
+        window.speechSynthesis.onvoiceschanged = populateVoiceList;
+
+        // Event listener for updating voices based on the selected language
+        languageSelect.addEventListener('change', populateVoiceList);
+
+        // Convert the text to speech and play the audio
+        convertButton.addEventListener('click', () => {
+            const text = textInput.value.trim();
+            const language = languageSelect.value;
+            const voiceURI = voiceSelect.value;
+
+            if (text && language && voiceURI) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = language;
+                utterance.voice = voices.find(v => v.voiceURI === voiceURI) || manualVoices[language].find(v => v.voiceURI === voiceURI);
+
+                // Play the speech and link it to the audio player for controls
+                utterance.onend = () => {
+                    // Optional: handle actions when speech ends
+                };
+
+                window.speechSynthesis.speak(utterance);
+            }
+        });
+
+        // Update the character count as the user types
+        textInput.addEventListener('input', () => {
+            const textLength = textInput.value.length;
+            charCount.textContent = `${textLength}/500 characters`;
+        });
+
+        // Simulate download of the text as an audio file
+        downloadButton.addEventListener('click', () => {
+            const text = textInput.value.trim();
+            const language = languageSelect.value;
+
+            if (!text) {
+                alert("Please enter text to download as audio.");
+                return;
+            }
+
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `text_speech_${language}.txt`;  // Use the language and save as text file
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>
